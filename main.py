@@ -2,6 +2,13 @@
 A* Pathfinding Micromouse Simulation
 Author: Carl Kho
 Description: Visualizes A* pathfinding algorithm in a maze environment with step-by-step exploration
+
+Manhattan Distance Explanation:
+- Numbers show the minimum steps to reach the goal if there were no walls
+- At intersections, numbers may seem to repeat (e.g., 26,27,26,25) because:
+  1. Different cells can be equidistant from the goal
+  2. The actual path may need to take detours around walls
+  3. A* combines this distance estimate with actual steps taken to find optimal path
 """
 
 import pygame
@@ -36,8 +43,8 @@ EXPLORED_COLOR = (80, 41, 35)  # Subtle copper/orange tone
 PATH_COLOR = (60, 60, 65)  # Slightly lighter for path
 WALL_COLOR = (200, 200, 200)  # Soft white for walls
 MOUSE_COLOR = (90, 90, 95)  # Mouse color
-START_COLOR = (70, 70, 70)  # Start position
-END_COLOR = (100, 100, 100)  # End position
+START_COLOR = (67, 160, 71)  # Subtle green
+END_COLOR = (121, 40, 40)  # Subtle dark red
 BORDER_COLOR = (50, 50, 55)  # Border color
 SHOW_NUMBERS_COLOR = (180, 180, 180)  # Light gray for numbers
 
@@ -71,8 +78,12 @@ def create_maze(width, height):
     return maze
 
 
-def find_start_end(maze):
-    """Finds starting (S) and ending (E) positions."""
+def find_start_end(maze, center_goal=False):
+    """
+    Finds starting (S) and ending (E) positions.
+    If center_goal is True, places end point near maze center.
+    Otherwise, randomly places it on edges.
+    """
     start = None
     end = None
 
@@ -83,12 +94,38 @@ def find_start_end(maze):
             maze[y][0] = "S"
             break
 
-    # Find end on the right side
-    for y in range(len(maze)):
-        if maze[y][len(maze[0]) - 2] == ".":
-            end = (y, len(maze[0]) - 1)
-            maze[y][len(maze[0]) - 1] = "E"
-            break
+    if center_goal:
+        # Place end near center
+        center_y = len(maze) // 2
+        center_x = len(maze[0]) // 2
+        # Search for nearest open cell to center
+        for radius in range(3):  # Look within 3 cells of center
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    y, x = center_y + dy, center_x + dx
+                    if 0 <= y < len(maze) and 0 <= x < len(maze[0]) and maze[y][x] == ".":
+                        end = (y, x)
+                        maze[y][x] = "E"
+                        return start, end
+    else:
+        # Randomly choose edge for end point
+        edges = []
+        # Add all edge cells that are paths
+        for y in range(len(maze)):
+            if maze[y][1] == ".":  # Right edge
+                edges.append((y, len(maze[0])-1))
+            if maze[y][len(maze[0])-2] == ".":  # Left edge
+                edges.append((y, 0))
+        for x in range(len(maze[0])):
+            if maze[1][x] == ".":  # Bottom edge
+                edges.append((len(maze)-1, x))
+            if maze[len(maze)-2][x] == ".":  # Top edge
+                edges.append((0, x))
+
+        if edges:
+            end_y, end_x = random.choice(edges)
+            end = (end_y, end_x)
+            maze[end_y][end_x] = "E"
 
     return start, end
 
@@ -101,12 +138,13 @@ def heuristic(a, b):
 
 def astar(maze, start, end):
     """A\* search algorithm."""
+    global cost_so_far  # Make sure we can access this globally
+    cost_so_far = {}  # Reset for new path calculation
     open_set = []  # Priority queue (cost, node)
     heapq.heappush(open_set, (0, start))
     came_from = {}  # Path from start to a given node
-    cost_so_far = {}  # Cost to reach a given node from start
-    came_from[start] = None
     cost_so_far[start] = 0
+    came_from[start] = None
     explored = set()  # Keep track of explored cells
 
     while open_set:
@@ -384,14 +422,21 @@ def toggle_explored_cells():
 def step_forward():
     global current_step
     current_step = True
-    # Print decision for current step
+    # Print decision for current step with better explanation
     if mouse.path and mouse.path_index < len(mouse.path):
         next_pos = mouse.path[mouse.path_index]
-        cost = cost_so_far.get(next_pos, float("inf"))
-        priority = cost + heuristic(next_pos, end)
+        current_pos = mouse.pos
+        manhattan_dist = heuristic(next_pos, end)
+        actual_cost = mouse.path_index + 1  # Steps taken so far + 1
+        total_cost = actual_cost + manhattan_dist
+
         print(f"\nStep {mouse.path_index + 1}:")
-        print(f"Moving to ({next_pos[0]}, {next_pos[1]})")
-        print(f"Total cost: {cost}, Priority: {priority}")
+        print(f"Current position: ({current_pos[0]}, {current_pos[1]})")
+        print(f"Moving to: ({next_pos[0]}, {next_pos[1]})")
+        print(f"Manhattan distance to goal: {manhattan_dist}")
+        print(f"Steps taken: {actual_cost}")
+        print(f"Total estimated cost: {total_cost}")
+        print("Note: Manhattan numbers show absolute distance to goal from each cell")
 
 
 def step_backward():
@@ -511,8 +556,8 @@ buttons = [
     button_stop,
     button_reset,
     button_numbers,
-    button_step_forward,
-    button_step_backward,
+    button_step_backward,  # Swapped order
+    button_step_forward,   # Swapped order
     button_explored_cells,
 ]
 
@@ -545,6 +590,29 @@ def draw_manhattan_distances(screen, maze, end, maze_x, maze_y):
                         )
                     )
                     screen.blit(text_surface, text_rect)
+
+
+def draw_start_end_markers(screen, maze, maze_x, maze_y):
+    """Draw special markers for start and end positions"""
+    for y, row in enumerate(maze):
+        for x, cell in enumerate(row):
+            if cell in ["S", "E"]:
+                cell_rect = pygame.Rect(
+                    maze_x + x * CELL_SIZE,
+                    maze_y + y * CELL_SIZE,
+                    CELL_SIZE,
+                    CELL_SIZE
+                )
+                color = START_COLOR if cell == "S" else END_COLOR
+                # Fill cell
+                pygame.draw.rect(screen, color, cell_rect)
+
+                # Draw indicator symbol
+                symbol = "S" if cell == "S" else "E"
+                font = pygame.font.Font(None, int(CELL_SIZE * 0.7))
+                text = font.render(symbol, True, WHITE)
+                text_rect = text.get_rect(center=cell_rect.center)
+                screen.blit(text, text_rect)
 
 
 # --- Game loop ---
@@ -586,17 +654,21 @@ while running:
         maze_rect.left - border_width,
         maze_rect.top - border_width,
         maze_rect.width + (2 * border_width),
-        maze_rect.height + (2 * border_width)  # Added missing height parameter
+        maze_rect.height + (2 * border_width),  # Added missing height parameter
     )
     pygame.draw.rect(screen, BORDER_COLOR, outer_border_rect, border_width)
 
     # --- Update button positions ---
     # Calculate total buttons width including spacing
-    button_group_width = sum(b.rect.width for b in buttons) + BUTTON_SPACING * (len(buttons) - 1)
+    button_group_width = sum(b.rect.width for b in buttons) + BUTTON_SPACING * (
+        len(buttons) - 1
+    )
 
     # Center all controls horizontally
     start_x = (window_width - button_group_width) // 2
-    controls_y = window_height - (CONTROL_HEIGHT * 0.7)  # Position controls higher in panel
+    controls_y = window_height - (
+        CONTROL_HEIGHT * 0.7
+    )  # Position controls higher in panel
 
     # Position buttons in a row
     current_x = start_x
@@ -605,9 +677,11 @@ while running:
         current_x += button.rect.width + BUTTON_SPACING
 
     # Position slider
-    slider_width = min(300, button_group_width)  # Match buttons group width
-    slider_x = (window_width - slider_width) // 2
+    slider_container_width = slider_width + 100  # Extra space for FPS
+    slider_x = (window_width - slider_container_width) // 2
     slider_y = controls_y + BUTTON_HEIGHT + 10
+
+    # Update slider
     speed_slider.rect = pygame.Rect(slider_x, slider_y, slider_width, slider_height)
     speed_slider.knob_rect = pygame.Rect(
         speed_slider.knob_rect.x,
@@ -616,12 +690,12 @@ while running:
         slider_height
     )
 
-    # Draw slider panel background
+    # Draw slider panel background with space for FPS
     slider_panel = pygame.Rect(
         slider_x - 5,
         slider_y - 5,
-        slider_width + 10,
-        slider_height + 25
+        slider_container_width + 10,
+        slider_height + 10
     )
     pygame.draw.rect(screen, GRAY_DARK, slider_panel, border_radius=5)
 
@@ -649,7 +723,7 @@ while running:
         maze_rect.left - border_width,
         maze_rect.top - border_width,
         maze_rect.width + (2 * border_width),
-        maze_rect.height + (2 * border_width)
+        maze_rect.height + (2 * border_width),
     )
     pygame.draw.rect(screen, BORDER_COLOR, outer_border_rect, border_width)
 
@@ -657,10 +731,7 @@ while running:
     for y, row in enumerate(maze):
         for x, cell in enumerate(row):
             cell_rect = pygame.Rect(
-                maze_x + x * CELL_SIZE,
-                maze_y + y * CELL_SIZE,
-                CELL_SIZE,
-                CELL_SIZE
+                maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
             )
             if cell == "#":
                 pygame.draw.rect(screen, WALL_COLOR, cell_rect)
@@ -711,8 +782,13 @@ while running:
     font = pygame.font.Font(None, 30)
     fps_text = f"FPS: {int(speed_slider.get_value())}"
     fps_surface = font.render(fps_text, True, WHITE)
-    fps_rect = fps_surface.get_rect(topleft=(slider_x, slider_y + slider_height + 10))
+    fps_rect = fps_surface.get_rect(
+        midleft=(slider_x + slider_width + 20, slider_y + slider_height // 2)
+    )
     screen.blit(fps_surface, fps_rect)
+
+    # Draw start/end markers after maze cells
+    draw_start_end_markers(screen, maze, maze_x, maze_y)
 
     pygame.display.flip()
 
