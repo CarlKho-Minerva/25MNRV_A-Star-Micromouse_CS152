@@ -9,6 +9,7 @@ class Mouse(pygame.sprite.Sprite):
     Inherits from pygame.sprite.Sprite for rendering and collision detection.
     Implements movement, path tracking, and backtracking capabilities.
     """
+
     def __init__(self, x, y):
         """
         Initialize mouse with starting position and visual representation.
@@ -30,9 +31,9 @@ class Mouse(pygame.sprite.Sprite):
         self.pos = (y, x)
 
         # Path tracking variables
-        self.path = []          # List of positions to follow
-        self.path_index = 0     # Current position in path
-        self.history = []       # Stack of previous positions for backtracking
+        self.path = []  # List of positions to follow
+        self.path_index = 0  # Current position in path
+        self.history = []  # Stack of previous positions for backtracking
 
     def update(self, maze, end_points, on_step=None):
         """
