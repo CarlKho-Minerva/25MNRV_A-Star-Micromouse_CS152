@@ -9,17 +9,27 @@ class Slider:
         self.min_val = min_val
         self.max_val = max_val
         self.value = initial_val  # rename val to value for clarity
-        self.knob_rect = pygame.Rect(x, y, 10, height)
-        self.knob_rect.centerx = (
-            x + (initial_val - min_val) / (max_val - min_val) * width
+        self.knob_rect = pygame.Rect(x, y, 20, height)  # Give the knob a fixed width of 20
+        self.knob_rect.centery = (
+            558
         )
+        self.knob_rect.centerx = 450
         self.dragging = False
         self.color = color
         self.slider_color = slider_color
+        self.background_rect = pygame.Rect(x-5, y-5, width+10, height+10)
+        self.background_color = (35, 35, 35)  # Dark background for slider
 
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
-        pygame.draw.rect(screen, self.slider_color, self.knob_rect)
+        # Draw background panel first
+        pygame.draw.rect(screen, self.background_color, self.background_rect, border_radius=4)
+        # Draw slider track
+        pygame.draw.rect(screen, self.color, self.rect, border_radius=3)
+        # Draw knob on top
+        pygame.draw.rect(screen, self.slider_color, self.knob_rect, border_radius=3)
+
+        # Add subtle border to track
+        pygame.draw.rect(screen, (90, 90, 90), self.rect, width=1, border_radius=3)
 
     def update(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):

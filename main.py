@@ -82,7 +82,7 @@ class MicromouseSimulation:
                 0,
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT,
-                "Mnhtn Dst",
+                "Mnhtn",
                 GRAY_MID,
                 GRAY_DARK,
                 WHITE,
@@ -197,10 +197,13 @@ class MicromouseSimulation:
             current_x += button.rect.width + BUTTON_SPACING
             button.draw(self.screen)
 
-        # Position and draw slider
+        # Position and draw slider with FPS text
         slider_x = (window_width - self.speed_slider.rect.width) // 2
         slider_y = control_y + BUTTON_HEIGHT + 15
         self.speed_slider.rect.topleft = (slider_x, slider_y)
+        self.speed_slider.background_rect.topleft = (slider_x - 5, slider_y - 5)
+
+        # Draw slider and FPS in proper order
         self.speed_slider.draw(self.screen)
 
         # Draw FPS text
