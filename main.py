@@ -21,7 +21,10 @@ MAZE_HEIGHT = 18
 CELL_SIZE = min(
     INITIAL_WIDTH // (MAZE_WIDTH + 4), INITIAL_HEIGHT // (MAZE_HEIGHT + 6)
 )  # More margin
-CONTROL_HEIGHT = 100  # Increased for better spacing
+CONTROL_HEIGHT = 120  # Increased for better spacing
+BUTTON_SPACING = 10  # Reduced spacing between buttons
+BUTTON_WIDTH = 90  # Slightly smaller buttons
+BUTTON_HEIGHT = 35
 
 # Colors - Minimalist scheme
 BLACK = (18, 18, 18)  # Soft black
@@ -29,15 +32,20 @@ WHITE = (245, 245, 245)  # Soft white
 GRAY_DARK = (45, 45, 45)  # Dark gray
 GRAY_MID = (75, 75, 75)  # Mid gray
 GRAY_LIGHT = (120, 120, 120)  # Light gray
-EXPLORED_COLOR = (35, 35, 40)  # Slightly bluish dark gray for explored cells
+EXPLORED_COLOR = (80, 41, 35)  # Subtle copper/orange tone
 PATH_COLOR = (60, 60, 65)  # Slightly lighter for path
 WALL_COLOR = (200, 200, 200)  # Soft white for walls
 MOUSE_COLOR = (90, 90, 95)  # Mouse color
 START_COLOR = (70, 70, 70)  # Start position
 END_COLOR = (100, 100, 100)  # End position
 BORDER_COLOR = (50, 50, 55)  # Border color
+SHOW_NUMBERS_COLOR = (180, 180, 180)  # Light gray for numbers
 
 FPS = 30  # Initial frames per second
+
+# Add new global variables
+show_decisions = False  # Toggle for decision logs
+decision_logs = []  # Store decision logs for display
 
 
 # --- Maze generation (Recursive Backtracker) ---
@@ -116,14 +124,15 @@ def astar(maze, start, end):
                 priority = new_cost + heuristic(end, next)
                 heapq.heappush(open_set, (priority, next))
                 came_from[next] = current
-                reason = (
-                    f"Chose this path because it has the lowest combined cost (distance so far + "
-                    f"estimated distance to goal) of {priority}"
-                )
-                log_message(
-                    f"Decision at ({current[0]},{current[1]}): Moving to ({next[0]},{next[1]}) - {reason}",
-                    GRAY_LIGHT,
-                )
+                if show_decisions:
+                    reason = (
+                        f"Chose this path because it has the lowest combined cost (distance so far + "
+                        f"estimated distance to goal) of {priority}"
+                    )
+                    log_message(
+                        f"Decision at ({current[0]},{current[1]}): Moving to ({next[0]},{next[1]}) - {reason}",
+                        GRAY_LIGHT,
+                    )
 
     # Reconstruct path
     path = []
@@ -375,10 +384,23 @@ def toggle_explored_cells():
 def step_forward():
     global current_step
     current_step = True
+    # Print decision for current step
+    if mouse.path and mouse.path_index < len(mouse.path):
+        next_pos = mouse.path[mouse.path_index]
+        cost = cost_so_far.get(next_pos, float("inf"))
+        priority = cost + heuristic(next_pos, end)
+        print(f"\nStep {mouse.path_index + 1}:")
+        print(f"Moving to ({next_pos[0]}, {next_pos[1]})")
+        print(f"Total cost: {cost}, Priority: {priority}")
 
 
 def step_backward():
+    global current_step
     mouse.go_back()
+    # Print state after stepping back
+    if mouse.history:
+        print(f"\nStepped back to ({mouse.pos[0]}, {mouse.pos[1]})")
+        print(f"Remaining steps: {len(mouse.path) - mouse.path_index}")
 
 
 # --- Pygame setup ---
@@ -505,6 +527,26 @@ fading_cells = []  # Keep track of cells to fade out
 # --- Get A* search cost information ---
 cost_so_far = {}
 
+
+def draw_manhattan_distances(screen, maze, end, maze_x, maze_y):
+    """Draw Manhattan distance numbers on the maze cells."""
+    if show_numbers:  # Use the global flag
+        font = pygame.font.Font(None, 20)
+        for y in range(MAZE_HEIGHT):
+            for x in range(MAZE_WIDTH):
+                if maze[y][x] != "#":
+                    distance = heuristic((y, x), end)
+                    text = str(distance)
+                    text_surface = font.render(text, True, SHOW_NUMBERS_COLOR)
+                    text_rect = text_surface.get_rect(
+                        center=(
+                            maze_x + (x + 0.5) * CELL_SIZE,
+                            maze_y + (y + 0.5) * CELL_SIZE,
+                        )
+                    )
+                    screen.blit(text_surface, text_rect)
+
+
 # --- Game loop ---
 running = True
 while running:
@@ -536,22 +578,52 @@ while running:
     # Control panel at bottom
     control_panel_y = window_height - control_panel_height
 
-    # --- Update button positions ---
-    button_spacing = 20
-    total_buttons_width = (len(buttons) * button_width) + (
-        (len(buttons) - 1) * button_spacing
+    # --- Draw maze ---
+    maze_rect = pygame.Rect(maze_x, maze_y, maze_width, maze_height)
+    # Draw outer border
+    border_width = 5
+    outer_border_rect = pygame.Rect(
+        maze_rect.left - border_width,
+        maze_rect.top - border_width,
+        maze_rect.width + (2 * border_width),
+        maze_rect.height + (2 * border_width)  # Added missing height parameter
     )
-    start_x = (window_width - total_buttons_width) // 2
-    button_y = window_height - (control_panel_height // 2)
+    pygame.draw.rect(screen, BORDER_COLOR, outer_border_rect, border_width)
 
-    for i, button in enumerate(buttons):
-        button.rect.topleft = (start_x + (button_width + button_spacing) * i, button_y)
+    # --- Update button positions ---
+    # Calculate total buttons width including spacing
+    button_group_width = sum(b.rect.width for b in buttons) + BUTTON_SPACING * (len(buttons) - 1)
 
-    # Place slider below buttons
-    slider_width = 200
+    # Center all controls horizontally
+    start_x = (window_width - button_group_width) // 2
+    controls_y = window_height - (CONTROL_HEIGHT * 0.7)  # Position controls higher in panel
+
+    # Position buttons in a row
+    current_x = start_x
+    for button in buttons:
+        button.rect.topleft = (current_x, controls_y)
+        current_x += button.rect.width + BUTTON_SPACING
+
+    # Position slider
+    slider_width = min(300, button_group_width)  # Match buttons group width
     slider_x = (window_width - slider_width) // 2
-    slider_y = button_y + button_height + 10
+    slider_y = controls_y + BUTTON_HEIGHT + 10
     speed_slider.rect = pygame.Rect(slider_x, slider_y, slider_width, slider_height)
+    speed_slider.knob_rect = pygame.Rect(
+        speed_slider.knob_rect.x,
+        slider_y,
+        10,
+        slider_height
+    )
+
+    # Draw slider panel background
+    slider_panel = pygame.Rect(
+        slider_x - 5,
+        slider_y - 5,
+        slider_width + 10,
+        slider_height + 25
+    )
+    pygame.draw.rect(screen, GRAY_DARK, slider_panel, border_radius=5)
 
     # --- Update fading cells ---
     for i in range(len(fading_cells) - 1, -1, -1):
@@ -568,20 +640,27 @@ while running:
     screen.fill(BLACK)
 
     # --- Draw maze ---
+    # Create and position maze rect only once
     maze_rect = pygame.Rect(maze_x, maze_y, maze_width, maze_height)
-    # Draw outer border
+
+    # Draw outer border with proper parameters
     border_width = 5
     outer_border_rect = pygame.Rect(
         maze_rect.left - border_width,
         maze_rect.top - border_width,
         maze_rect.width + (2 * border_width),
-        maze_rect.height + (2 * border_width),
+        maze_rect.height + (2 * border_width)
     )
     pygame.draw.rect(screen, BORDER_COLOR, outer_border_rect, border_width)
+
+    # Draw maze cells
     for y, row in enumerate(maze):
         for x, cell in enumerate(row):
             cell_rect = pygame.Rect(
-                maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
+                maze_x + x * CELL_SIZE,
+                maze_y + y * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
             )
             if cell == "#":
                 pygame.draw.rect(screen, WALL_COLOR, cell_rect)
@@ -620,16 +699,20 @@ while running:
     control_rect = pygame.Rect(0, control_panel_y, window_width, control_panel_height)
     pygame.draw.rect(screen, BLACK, control_rect)
 
+    # Draw numbers if enabled
+    draw_manhattan_distances(screen, maze, end, maze_x, maze_y)
+
     # Draw GUI elements
     for button in buttons:
         button.draw(screen)
     speed_slider.draw(screen)
 
-    # Display current FPS
+    # Display current FPS and decisions
     font = pygame.font.Font(None, 30)
-    fps_text = font.render(f"FPS: {int(speed_slider.get_value())}", True, WHITE)
-    fps_rect = fps_text.get_rect(topleft=(slider_x, slider_y + slider_height + 10))
-    screen.blit(fps_text, fps_rect)
+    fps_text = f"FPS: {int(speed_slider.get_value())}"
+    fps_surface = font.render(fps_text, True, WHITE)
+    fps_rect = fps_surface.get_rect(topleft=(slider_x, slider_y + slider_height + 10))
+    screen.blit(fps_surface, fps_rect)
 
     pygame.display.flip()
 
