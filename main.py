@@ -1,3 +1,9 @@
+"""
+A* Pathfinding Micromouse Simulation
+Author: Carl Kho
+Description: Visualizes A* pathfinding algorithm in a maze environment with step-by-step exploration
+"""
+
 import pygame
 import random
 import time
@@ -8,28 +14,30 @@ pygame.init()
 
 # Get display info after initialization
 info = pygame.display.Info()
-INITIAL_WIDTH = int(info.current_w * 0.8)  # 80% of screen width
-INITIAL_HEIGHT = int(info.current_h * 0.8)  # 80% of screen height
+INITIAL_WIDTH = int(info.current_w * 0.7)  # 70% of screen width
+INITIAL_HEIGHT = int(info.current_h * 0.7)  # 70% of screen height
 MAZE_WIDTH = 25
 MAZE_HEIGHT = 18
-CELL_SIZE = min(INITIAL_WIDTH // (MAZE_WIDTH + 2), INITIAL_HEIGHT // (MAZE_HEIGHT + 4))
-CONTROL_HEIGHT = 80
+CELL_SIZE = min(
+    INITIAL_WIDTH // (MAZE_WIDTH + 4), INITIAL_HEIGHT // (MAZE_HEIGHT + 6)
+)  # More margin
+CONTROL_HEIGHT = 100  # Increased for better spacing
+
+# Colors - Minimalist scheme
+BLACK = (18, 18, 18)  # Soft black
+WHITE = (245, 245, 245)  # Soft white
+GRAY_DARK = (45, 45, 45)  # Dark gray
+GRAY_MID = (75, 75, 75)  # Mid gray
+GRAY_LIGHT = (120, 120, 120)  # Light gray
+EXPLORED_COLOR = (35, 35, 40)  # Slightly bluish dark gray for explored cells
+PATH_COLOR = (60, 60, 65)  # Slightly lighter for path
+WALL_COLOR = (200, 200, 200)  # Soft white for walls
+MOUSE_COLOR = (90, 90, 95)  # Mouse color
+START_COLOR = (70, 70, 70)  # Start position
+END_COLOR = (100, 100, 100)  # End position
+BORDER_COLOR = (50, 50, 55)  # Border color
 
 FPS = 30  # Initial frames per second
-
-# Colors - Updated for modern look
-BLACK = (18, 18, 18)  # Softer black
-WHITE = (245, 245, 245)  # Softer white
-RED = (235, 87, 87)  # Softer red
-GREEN = (76, 175, 80)  # Material design green
-BLUE = (33, 150, 243)  # Material design blue
-GRAY = (158, 158, 158)
-DARK_GRAY = (66, 66, 66)
-LIGHT_BLUE = (187, 222, 251)
-FADE_BLUE = (25, 118, 210)
-YELLOW = (255, 235, 59)
-PURPLE = (156, 39, 176)  # Material design purple
-GOLD = (255, 193, 7)  # Material design amber
 
 
 # --- Maze generation (Recursive Backtracker) ---
@@ -108,9 +116,13 @@ def astar(maze, start, end):
                 priority = new_cost + heuristic(end, next)
                 heapq.heappush(open_set, (priority, next))
                 came_from[next] = current
+                reason = (
+                    f"Chose this path because it has the lowest combined cost (distance so far + "
+                    f"estimated distance to goal) of {priority}"
+                )
                 log_message(
-                    f"A\*: ({current[0]},{current[1]}) -> ({next[0]},{next[1]}) - Cost: {new_cost}, Priority: {priority}",
-                    DARK_GRAY,
+                    f"Decision at ({current[0]},{current[1]}): Moving to ({next[0]},{next[1]}) - {reason}",
+                    GRAY_LIGHT,
                 )
 
     # Reconstruct path
@@ -149,7 +161,7 @@ class Mouse(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
-        self.image.fill(BLUE)
+        self.image.fill(MOUSE_COLOR)
         self.rect = self.image.get_rect()
         self.rect.x = x * CELL_SIZE
         self.rect.y = y * CELL_SIZE
@@ -165,16 +177,17 @@ class Mouse(pygame.sprite.Sprite):
         if not self.path:
             self.path, explored = astar(maze, self.pos, end)  # Calculate path using A*
             if self.path:
-                log_message("A* path found (if one exists): " + str(self.path), GOLD)
-                # Visualize explored cells
+                log_message(
+                    "A* path found (if one exists): " + str(self.path), GRAY_LIGHT
+                )
+                # Add explored cells without fading
                 for ey, ex in explored:
                     if (ey, ex) != start and (ey, ex) != end:
                         explored_cells.add((ey, ex))
-                        fading_cells.append((ey, ex, 255))
-                self.path_index = 0
             else:
-                log_message("No path found!", RED)
+                log_message("No path found!", GRAY_LIGHT)
 
+        # Remove fading mechanism, cells stay explored
         if self.path:
             if current_step or simulation_running:
                 if self.path_index < len(self.path):
@@ -187,7 +200,7 @@ class Mouse(pygame.sprite.Sprite):
                         priority = cost + heuristic(neighbor, end)
                         log_message(
                             f"  Neighbor ({neighbor[0]},{neighbor[1]}) - Cost: {cost}, Priority: {priority}",
-                            DARK_GRAY,
+                            GRAY_DARK,
                         )
 
                     chosen_cost = cost_so_far.get(next_pos, float("inf"))
@@ -220,7 +233,7 @@ class Mouse(pygame.sprite.Sprite):
             # Decrement the path index to align with the previous position
             self.path_index = max(0, self.path_index - 1)
 
-            log_message(f"Step back to ({self.pos[0]},{self.pos[1]})", DARK_GRAY)
+            log_message(f"Step back to ({self.pos[0]},{self.pos[1]})", GRAY_DARK)
 
     def reset_path(self):
         """Resets the mouse's path and history."""
@@ -301,7 +314,7 @@ class Slider:
 
     def update(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1 and self.rect.collidepoint(pygame.mouse.get_pos()):
+            if self.rect.collidepoint(pygame.mouse.get_pos()):
                 self.dragging = True
         elif event.type == pygame.MOUSEBUTTONUP:
             self.dragging = False
@@ -342,7 +355,7 @@ def reset_simulation():
     simulation_running = False
     explored_cells = set()  # Clear explored cells
     fading_cells = []
-    log_message("Simulation reset.", GOLD)
+    log_message("Simulation reset.", GRAY_LIGHT)
     current_step = False
     mouse.path = []
     cost_so_far = {}
@@ -409,8 +422,8 @@ button_start = Button(
     button_width,
     button_height,
     "Start",
-    (76, 175, 80),
-    (67, 160, 71),
+    GRAY_MID,
+    GRAY_DARK,
     WHITE,
     start_simulation,
 )
@@ -420,8 +433,8 @@ button_stop = Button(
     button_width,
     button_height,
     "Stop",
-    (235, 87, 87),
-    (220, 75, 75),
+    GRAY_MID,
+    GRAY_DARK,
     WHITE,
     stop_simulation,
 )
@@ -431,16 +444,16 @@ button_reset = Button(
     button_width,
     button_height,
     "Reset",
-    (96, 125, 139),
-    (84, 110, 122),
+    GRAY_MID,
+    GRAY_DARK,
     WHITE,
     reset_simulation,
 )
 button_step_forward = Button(
-    0, 0, 40, button_height, ">", (63, 81, 181), (57, 73, 171), WHITE, step_forward
+    0, 0, 40, button_height, ">", GRAY_MID, GRAY_DARK, WHITE, step_forward
 )
 button_step_backward = Button(
-    0, 0, 40, button_height, "<", (63, 81, 181), (57, 73, 171), WHITE, step_backward
+    0, 0, 40, button_height, "<", GRAY_MID, GRAY_DARK, WHITE, step_backward
 )
 button_numbers = Button(
     0,
@@ -448,8 +461,8 @@ button_numbers = Button(
     button_width,
     button_height,
     "Numbers",
-    (156, 39, 176),
-    (142, 36, 170),
+    GRAY_MID,
+    GRAY_DARK,
     WHITE,
     toggle_numbers,
 )
@@ -459,8 +472,8 @@ button_explored_cells = Button(
     button_width + 40,
     button_height,
     "Explored Cells",
-    (156, 39, 176),
-    (142, 36, 170),
+    GRAY_MID,
+    GRAY_DARK,
     WHITE,
     toggle_explored_cells,
 )
@@ -469,7 +482,7 @@ button_explored_cells = Button(
 slider_width = 200
 slider_height = 20
 
-speed_slider = Slider(0, 0, slider_width, slider_height, 1, 60, FPS, GRAY, WHITE)
+speed_slider = Slider(0, 0, slider_width, slider_height, 1, 60, FPS, GRAY_MID, WHITE)
 
 buttons = [
     button_start,
@@ -564,18 +577,18 @@ while running:
         maze_rect.width + (2 * border_width),
         maze_rect.height + (2 * border_width),
     )
-    pygame.draw.rect(screen, PURPLE, outer_border_rect, border_width)
+    pygame.draw.rect(screen, BORDER_COLOR, outer_border_rect, border_width)
     for y, row in enumerate(maze):
         for x, cell in enumerate(row):
             cell_rect = pygame.Rect(
                 maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
             )
             if cell == "#":
-                pygame.draw.rect(screen, WHITE, cell_rect)
+                pygame.draw.rect(screen, WALL_COLOR, cell_rect)
             elif cell == "S":
-                pygame.draw.rect(screen, GREEN, cell_rect)
+                pygame.draw.rect(screen, START_COLOR, cell_rect)
             elif cell == "E":
-                pygame.draw.rect(screen, RED, cell_rect)
+                pygame.draw.rect(screen, END_COLOR, cell_rect)
 
     # --- Draw explored cells ---
     if show_explored_cells:
@@ -583,34 +596,9 @@ while running:
             cell_rect = pygame.Rect(
                 maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
             )
-            pygame.draw.rect(screen, LIGHT_BLUE, cell_rect)
+            pygame.draw.rect(screen, EXPLORED_COLOR, cell_rect)
 
-        # --- Draw fading cells ---
-        for y, x, alpha in fading_cells:
-            cell_rect = pygame.Rect(
-                maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
-            )
-            fading_surface = pygame.Surface((CELL_SIZE, CELL_SIZE), pygame.SRCALPHA)
-            fading_surface.fill((FADE_BLUE[0], FADE_BLUE[1], FADE_BLUE[2], alpha))
-            screen.blit(fading_surface, cell_rect)
-
-    # --- Draw Manhattan distance numbers if toggled ---
-    if show_numbers:
-        font = pygame.font.Font(None, 20)
-        for y in range(MAZE_HEIGHT):
-            for x in range(MAZE_WIDTH):
-                if maze[y][x] != "#":
-                    distance = heuristic((y, x), end)
-                    text_surface = font.render(str(distance), True, YELLOW)
-                    text_rect = text_surface.get_rect(
-                        center=(
-                            maze_x + (x + 0.5) * CELL_SIZE,
-                            maze_y + (y + 0.5) * CELL_SIZE,
-                        )
-                    )
-                    screen.blit(text_surface, text_rect)
-
-    # --- Draw mouse ---
+    # --- Draw mouse path ---
     for y, x in mouse.history:
         cell_rect = pygame.Rect(
             maze_x + x * CELL_SIZE,
@@ -618,7 +606,7 @@ while running:
             CELL_SIZE,
             CELL_SIZE,
         )
-        pygame.draw.rect(screen, FADE_BLUE, cell_rect)
+        pygame.draw.rect(screen, PATH_COLOR, cell_rect)
     if mouse.pos:
         cell_rect = pygame.Rect(
             maze_x + mouse.pos[1] * CELL_SIZE,
@@ -626,7 +614,7 @@ while running:
             CELL_SIZE,
             CELL_SIZE,
         )
-        pygame.draw.rect(screen, BLUE, cell_rect)
+        pygame.draw.rect(screen, MOUSE_COLOR, cell_rect)
 
     # --- Control Panel ---
     control_rect = pygame.Rect(0, control_panel_y, window_width, control_panel_height)
