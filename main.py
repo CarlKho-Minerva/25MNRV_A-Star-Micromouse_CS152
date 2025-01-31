@@ -23,8 +23,9 @@ pygame.init()
 info = pygame.display.Info()
 INITIAL_WIDTH = int(info.current_w * 0.7)  # 70% of screen width
 INITIAL_HEIGHT = int(info.current_h * 0.7)  # 70% of screen height
-MAZE_WIDTH = 25
-MAZE_HEIGHT = 18
+MAZE_WIDTH = 16  # Competition spec: 16x16
+MAZE_HEIGHT = 16
+CENTER_GOAL_SIZE = 2  # Center is 2x2 squares (4 unit squares total)
 CELL_SIZE = min(
     INITIAL_WIDTH // (MAZE_WIDTH + 4), INITIAL_HEIGHT // (MAZE_HEIGHT + 6)
 )  # More margin
@@ -59,107 +60,91 @@ decision_logs = []  # Store decision logs for display
 def create_maze(width, height):
     maze = [["#" for _ in range(width)] for _ in range(height)]
 
+    # Ensure the northwest corner (start position) has correct wall configuration
+    # Open to north, walls on west and south
+    maze[0][0] = "."  # Start cell
+    maze[0][1] = "."  # Path leading east from start
+    maze[1][0] = "#"  # South wall
+
     def carve_path(x, y):
-        maze[y][x] = "."  # Mark current cell as open
-
-        directions = [(0, 2), (2, 0), (0, -2), (-2, 0)]  # Possible moves (dx, dy)
+        maze[y][x] = "."
+        directions = [(0, 2), (2, 0), (0, -2), (-2, 0)]
         random.shuffle(directions)
-
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
             if 0 <= nx < width and 0 <= ny < height and maze[ny][nx] == "#":
-                maze[ny - dy // 2][nx - dx // 2] = "."  # Carve wall between cells
+                maze[ny - dy // 2][nx - dx // 2] = "."
                 carve_path(nx, ny)
 
-    start_x = random.choice(range(1, width - 1, 2))
-    start_y = random.choice(range(1, height - 1, 2))
-    carve_path(start_x, start_y)
-
+    # Start carving from the cell east of start
+    carve_path(1, 0)
     return maze
 
 
-def find_start_end(maze, center_goal=False):
+def find_start_end(maze):
     """
-    Finds starting (S) and ending (E) positions.
-    If center_goal is True, places end point near maze center.
-    Otherwise, randomly places it on edges.
+    Places start at northwest corner and end at center according to competition rules.
+    Start: Northwest corner (0,0) with opening to north
+    End: Center 4 squares (2x2 area)
     """
-    start = None
-    end = None
+    start = (0, 0)
+    maze[0][0] = "S"
 
-    # Find start on the left side
-    for y in range(len(maze)):
-        if maze[y][1] == ".":
-            start = (y, 0)
-            maze[y][0] = "S"
-            break
+    # Place end points in center 2x2 squares
+    center_y = MAZE_HEIGHT // 2 - 1  # Top-left of 2x2 center
+    center_x = MAZE_WIDTH // 2 - 1
 
-    if center_goal:
-        # Place end near center
-        center_y = len(maze) // 2
-        center_x = len(maze[0]) // 2
-        # Search for nearest open cell to center
-        for radius in range(3):  # Look within 3 cells of center
-            for dy in range(-radius, radius + 1):
-                for dx in range(-radius, radius + 1):
-                    y, x = center_y + dy, center_x + dx
-                    if 0 <= y < len(maze) and 0 <= x < len(maze[0]) and maze[y][x] == ".":
-                        end = (y, x)
-                        maze[y][x] = "E"
-                        return start, end
-    else:
-        # Randomly choose edge for end point
-        edges = []
-        # Add all edge cells that are paths
-        for y in range(len(maze)):
-            if maze[y][1] == ".":  # Right edge
-                edges.append((y, len(maze[0])-1))
-            if maze[y][len(maze[0])-2] == ".":  # Left edge
-                edges.append((y, 0))
-        for x in range(len(maze[0])):
-            if maze[1][x] == ".":  # Bottom edge
-                edges.append((len(maze)-1, x))
-            if maze[len(maze)-2][x] == ".":  # Top edge
-                edges.append((0, x))
+    # Mark all 4 center squares as valid endpoints
+    end_points = []
+    for dy in range(2):
+        for dx in range(2):
+            y, x = center_y + dy, center_x + dx
+            maze[y][x] = "E"
+            end_points.append((y, x))
 
-        if edges:
-            end_y, end_x = random.choice(edges)
-            end = (end_y, end_x)
-            maze[end_y][end_x] = "E"
+    # Ensure path exists from start to center
+    maze[0][1] = "."  # Ensure there's a path leading from start
 
-    return start, end
+    return start, end_points
 
 
 # --- A\* Search Algorithm ---
-def heuristic(a, b):
-    """Calculates the Manhattan distance between two points."""
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+def heuristic(a, end_points):
+    """Return minimum Manhattan distance to any end point"""
+    if isinstance(end_points, tuple):  # Single point
+        return abs(a[0] - end_points[0]) + abs(a[1] - end_points[1])
+    else:  # Multiple end points
+        return min(abs(a[0] - e[0]) + abs(a[1] - e[1]) for e in end_points)
 
 
-def astar(maze, start, end):
-    """A\* search algorithm."""
-    global cost_so_far  # Make sure we can access this globally
-    cost_so_far = {}  # Reset for new path calculation
-    open_set = []  # Priority queue (cost, node)
+def astar(maze, start, end_points):
+    """Modified A* to handle multiple valid end points"""
+    global cost_so_far
+    cost_so_far = {}
+    open_set = []
     heapq.heappush(open_set, (0, start))
-    came_from = {}  # Path from start to a given node
+    came_from = {}
     cost_so_far[start] = 0
     came_from[start] = None
-    explored = set()  # Keep track of explored cells
+    explored = set()
+    reached_end = None  # Keep track of which end point we actually reached
 
     while open_set:
         current_cost, current = heapq.heappop(open_set)
 
-        if current == end:
+        # Check if we've reached any of the end points
+        if current in end_points:
+            reached_end = current  # Store which end point we reached
             break
 
         explored.add(current)
 
         for next in get_neighbors(maze, current):
-            new_cost = cost_so_far[current] + 1  # Cost of a single step
+            new_cost = cost_so_far[current] + 1
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
-                priority = new_cost + heuristic(end, next)
+                # Use minimum distance to any end point as heuristic
+                priority = new_cost + min(heuristic(next, end) for end in end_points)
                 heapq.heappush(open_set, (priority, next))
                 came_from[next] = current
                 if show_decisions:
@@ -172,18 +157,19 @@ def astar(maze, start, end):
                         GRAY_LIGHT,
                     )
 
-    # Reconstruct path
-    path = []
-    current = end
-    while current != start:
-        if current in came_from:
-            path.append(current)
-            current = came_from[current]
-        else:
-            return None, explored  # No path found
+    # No path found if we didn't reach any end point
+    if reached_end is None:
+        return None, explored
 
+    # Reconstruct path from the actual end point we reached
+    path = []
+    current = reached_end  # Use the end point we actually reached
+    while current != start:
+        path.append(current)
+        current = came_from[current]
     path.append(start)
     path.reverse()
+
     return path, explored
 
 
@@ -393,9 +379,9 @@ def stop_simulation():
 
 
 def reset_simulation():
-    global maze, start, end, mouse, all_sprites, simulation_running, explored_cells, current_step, cost_so_far, fading_cells
+    global maze, start, end_points, mouse, all_sprites, simulation_running, explored_cells, current_step, cost_so_far, fading_cells
     maze = create_maze(MAZE_WIDTH, MAZE_HEIGHT)
-    start, end = find_start_end(maze)
+    start, end_points = find_start_end(maze)  # Now returns multiple end points
     mouse = Mouse(start[1], start[0])
     all_sprites = pygame.sprite.Group()
     all_sprites.add(mouse)
@@ -422,21 +408,20 @@ def toggle_explored_cells():
 def step_forward():
     global current_step
     current_step = True
-    # Print decision for current step with better explanation
     if mouse.path and mouse.path_index < len(mouse.path):
         next_pos = mouse.path[mouse.path_index]
         current_pos = mouse.pos
-        manhattan_dist = heuristic(next_pos, end)
-        actual_cost = mouse.path_index + 1  # Steps taken so far + 1
+        # Calculate minimum Manhattan distance to any end point
+        manhattan_dist = min(heuristic(next_pos, end) for end in end_points)
+        actual_cost = mouse.path_index + 1
         total_cost = actual_cost + manhattan_dist
 
         print(f"\nStep {mouse.path_index + 1}:")
         print(f"Current position: ({current_pos[0]}, {current_pos[1]})")
         print(f"Moving to: ({next_pos[0]}, {next_pos[1]})")
-        print(f"Manhattan distance to goal: {manhattan_dist}")
+        print(f"Manhattan distance to closest goal: {manhattan_dist}")
         print(f"Steps taken: {actual_cost}")
         print(f"Total estimated cost: {total_cost}")
-        print("Note: Manhattan numbers show absolute distance to goal from each cell")
 
 
 def step_backward():
@@ -455,7 +440,7 @@ clock = pygame.time.Clock()
 
 # --- Create maze, mouse, buttons, slider, and explored cells set ---
 maze = create_maze(MAZE_WIDTH, MAZE_HEIGHT)
-start, end = find_start_end(maze)
+start, end_points = find_start_end(maze)
 mouse = Mouse(start[1], start[0])
 all_sprites = pygame.sprite.Group()
 all_sprites.add(mouse)
@@ -473,7 +458,7 @@ clock = pygame.time.Clock()
 
 # --- Create maze, mouse, buttons, slider, and explored cells set ---
 maze = create_maze(MAZE_WIDTH, MAZE_HEIGHT)
-start, end = find_start_end(maze)
+start, end_points = find_start_end(maze)
 mouse = Mouse(start[1], start[0])
 all_sprites = pygame.sprite.Group()
 all_sprites.add(mouse)
@@ -527,7 +512,7 @@ button_numbers = Button(
     0,
     button_width,
     button_height,
-    "Numbers",
+    "Mnhtn Dst",
     GRAY_MID,
     GRAY_DARK,
     WHITE,
@@ -557,7 +542,7 @@ buttons = [
     button_reset,
     button_numbers,
     button_step_backward,  # Swapped order
-    button_step_forward,   # Swapped order
+    button_step_forward,  # Swapped order
     button_explored_cells,
 ]
 
@@ -598,10 +583,7 @@ def draw_start_end_markers(screen, maze, maze_x, maze_y):
         for x, cell in enumerate(row):
             if cell in ["S", "E"]:
                 cell_rect = pygame.Rect(
-                    maze_x + x * CELL_SIZE,
-                    maze_y + y * CELL_SIZE,
-                    CELL_SIZE,
-                    CELL_SIZE
+                    maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
                 )
                 color = START_COLOR if cell == "S" else END_COLOR
                 # Fill cell
@@ -629,7 +611,7 @@ while running:
 
     # --- Update ---
     if simulation_running or current_step:
-        mouse.update(maze, end)
+        mouse.update(maze, end_points)
 
     # --- Calculate sizes and positions based on current window size ---
     window_width, window_height = screen.get_size()
@@ -684,18 +666,12 @@ while running:
     # Update slider
     speed_slider.rect = pygame.Rect(slider_x, slider_y, slider_width, slider_height)
     speed_slider.knob_rect = pygame.Rect(
-        speed_slider.knob_rect.x,
-        slider_y,
-        10,
-        slider_height
+        speed_slider.knob_rect.x, slider_y, 10, slider_height
     )
 
     # Draw slider panel background with space for FPS
     slider_panel = pygame.Rect(
-        slider_x - 5,
-        slider_y - 5,
-        slider_container_width + 10,
-        slider_height + 10
+        slider_x - 5, slider_y - 5, slider_container_width + 10, slider_height + 10
     )
     pygame.draw.rect(screen, GRAY_DARK, slider_panel, border_radius=5)
 
@@ -771,7 +747,7 @@ while running:
     pygame.draw.rect(screen, BLACK, control_rect)
 
     # Draw numbers if enabled
-    draw_manhattan_distances(screen, maze, end, maze_x, maze_y)
+    draw_manhattan_distances(screen, maze, end_points, maze_x, maze_y)
 
     # Draw GUI elements
     for button in buttons:
