@@ -30,6 +30,7 @@ INITIAL_WIDTH = None
 INITIAL_HEIGHT = None
 CELL_SIZE = None
 
+
 def init_display_constants():
     """Initialize constants that depend on display info."""
     global INITIAL_WIDTH, INITIAL_HEIGHT, CELL_SIZE
@@ -37,4 +38,6 @@ def init_display_constants():
     info = pygame.display.Info()
     INITIAL_WIDTH = int(info.current_w * 0.7)
     INITIAL_HEIGHT = int(info.current_h * 0.7)
-    CELL_SIZE = min(INITIAL_WIDTH // (MAZE_WIDTH + 4), INITIAL_HEIGHT // (MAZE_HEIGHT + 6))
+    CELL_SIZE = min(
+        INITIAL_WIDTH // (MAZE_WIDTH + 4), INITIAL_HEIGHT // (MAZE_HEIGHT + 6)
+    )

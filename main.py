@@ -1,9 +1,19 @@
 import pygame
 from constants import init_display_constants
 
-# Initialize pygame first
+"""
+MicromouseSimulation: Main simulation class implementing micromouse competition rules
+http://micromouseusa.com/wp-content/uploads/2016/04/CAMM2016Rules.pdf
+
+Architecture:
+- Pygame-based UI with resizable window
+- Real-time visualization of A* pathfinding
+- Interactive controls (buttons/slider) for simulation management
+- Step-by-step or continuous execution modes
+"""
+
+# Initialize pygame before importing display-dependent modules
 pygame.init()
-# Then initialize display-dependent constants
 init_display_constants()
 
 # Now import everything else
@@ -25,6 +35,13 @@ from game_state import GameState
 
 class MicromouseSimulation:
     def __init__(self):
+        """
+        Initialize simulation components:
+        - Display setup with resizable window
+        - Maze generation and start/end points
+        - Mouse entity positioning
+        - UI controls creation
+        """
         pygame.init()
         self.screen = pygame.display.set_mode(
             (INITIAL_WIDTH, INITIAL_HEIGHT), pygame.RESIZABLE
@@ -42,7 +59,13 @@ class MicromouseSimulation:
         self.create_ui_elements()
 
     def create_ui_elements(self):
-        """Create and position UI controls."""
+        """
+        Create interactive UI controls:
+        - Control buttons: Start, Stop, Reset, Manhattan distances
+        - Step controls: Forward/Backward navigation
+        - Explored cells toggle
+        - Speed control slider (1-60 FPS)
+        """
         self.buttons = [
             Button(
                 0,
@@ -126,14 +149,24 @@ class MicromouseSimulation:
         self.speed_slider = Slider(0, 0, 200, 20, 1, 60, FPS, GRAY_MID, WHITE)
 
     def reset_simulation(self):
-        """Reset the simulation state."""
+        """
+        Reset simulation to initial state:
+        - Generate new random maze
+        - Reset mouse position
+        - Clear exploration history
+        """
         self.maze = create_maze(MAZE_WIDTH, MAZE_HEIGHT)
         self.start, self.end_points = find_start_end(self.maze)
         self.mouse = Mouse(self.start[1], self.start[0])
         self.game_state.reset()
 
     def step_forward(self):
-        """Process one step forward."""
+        """
+        Process one step of mouse movement:
+        - Update mouse position along path
+        - Print debugging information
+        - Calculate Manhattan distance to goal
+        """
         self.game_state.step_forward()
         if self.mouse.path and self.mouse.path_index < len(self.mouse.path):
             next_pos = self.mouse.path[self.mouse.path_index]
@@ -143,20 +176,35 @@ class MicromouseSimulation:
             print(f"Manhattan distance to goal: {manhattan_dist}")
 
     def step_backward(self):
-        """Process one step backward."""
+        """
+        Reverse one step of mouse movement:
+        - Move mouse to previous position
+        - Update visualization
+        """
         self.mouse.go_back()
         if self.mouse.history:
             print(f"\nStepped back to {self.mouse.pos}")
 
     def update(self):
-        """Update simulation state."""
+        """
+        Update simulation state:
+        - Process mouse movement if simulation is running
+        - Track explored cells for visualization
+        """
         if self.game_state.simulation_running or self.game_state.current_step:
             explored = self.mouse.update(self.maze, self.end_points)
             if explored:
                 self.game_state.explored_cells.update(explored)
 
     def draw(self):
-        """Draw the simulation."""
+        """
+        Render simulation components:
+        - Background and maze structure
+        - Explored cells and optimal path
+        - Manhattan distances (if enabled)
+        - Start/end markers
+        - UI controls
+        """
         self.screen.fill(BLACK)
 
         # Calculate layout
@@ -183,7 +231,12 @@ class MicromouseSimulation:
         pygame.display.flip()
 
     def draw_ui(self, window_width, window_height):
-        """Draw UI controls."""
+        """
+        Layout and render UI elements:
+        - Position buttons horizontally centered
+        - Draw speed slider with FPS display
+        - Update UI element positions on window resize
+        """
         control_y = window_height - CONTROL_HEIGHT * 0.7
 
         # Position buttons
@@ -216,7 +269,13 @@ class MicromouseSimulation:
         self.screen.blit(fps_surface, fps_rect)
 
     def run(self):
-        """Main game loop."""
+        """
+        Main simulation loop:
+        - Handle window and UI events
+        - Update simulation state
+        - Render visualization
+        - Control frame rate
+        """
         running = True
         while running:
             for event in pygame.event.get():

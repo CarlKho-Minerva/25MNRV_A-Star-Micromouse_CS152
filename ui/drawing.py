@@ -16,12 +16,17 @@ from constants import (
 
 
 def draw_maze(screen, maze, maze_x, maze_y, border_width=5):
-    """Draw the maze grid, walls, and border."""
+    """
+    Renders the maze structure with walls and border.
+    The maze follows competition specifications:
+    http://micromouseusa.com/wp-content/uploads/2016/04/CAMM2016Rules.pdf
+    """
+    # Create main maze rectangle for positioning
     maze_rect = pygame.Rect(
         maze_x, maze_y, MAZE_WIDTH * CELL_SIZE, MAZE_HEIGHT * CELL_SIZE
     )
 
-    # Border
+    # Draw outer border for visual clarity
     outer_border = pygame.Rect(
         maze_rect.left - border_width,
         maze_rect.top - border_width,
@@ -30,7 +35,7 @@ def draw_maze(screen, maze, maze_x, maze_y, border_width=5):
     )
     pygame.draw.rect(screen, BORDER_COLOR, outer_border, border_width)
 
-    # Cells
+    # Draw walls ('#' characters in maze array)
     for y, row in enumerate(maze):
         for x, cell in enumerate(row):
             cell_rect = pygame.Rect(
@@ -41,7 +46,10 @@ def draw_maze(screen, maze, maze_x, maze_y, border_width=5):
 
 
 def draw_markers(screen, maze, maze_x, maze_y):
-    """Draw start/end markers with symbols."""
+    """
+    Draws start ('S') and end ('E') markers with visual indicators.
+    End markers form a 2x2 square in maze center per competition rules.
+    """
     for y, row in enumerate(maze):
         for x, cell in enumerate(row):
             if cell in ["S", "E"]:
@@ -59,7 +67,10 @@ def draw_markers(screen, maze, maze_x, maze_y):
 
 
 def draw_explored_cells(screen, explored_cells, maze_x, maze_y):
-    """Draw explored cells during pathfinding."""
+    """
+    Visualizes cells that A* algorithm has examined.
+    Helps demonstrate the algorithm's exploration pattern.
+    """
     for y, x in explored_cells:
         cell_rect = pygame.Rect(
             maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
@@ -68,7 +79,10 @@ def draw_explored_cells(screen, explored_cells, maze_x, maze_y):
 
 
 def draw_path(screen, path_cells, maze_x, maze_y):
-    """Draw the path taken by the mouse."""
+    """
+    Highlights the optimal path found by A* algorithm.
+    Drawn on top of explored cells to show final route.
+    """
     for y, x in path_cells:
         cell_rect = pygame.Rect(
             maze_x + x * CELL_SIZE, maze_y + y * CELL_SIZE, CELL_SIZE, CELL_SIZE
@@ -77,7 +91,11 @@ def draw_path(screen, path_cells, maze_x, maze_y):
 
 
 def draw_manhattan_distances(screen, maze, end_points, maze_x, maze_y):
-    """Draw Manhattan distance numbers on cells."""
+    """
+    Displays Manhattan distance from each cell to nearest end point.
+    Used to visualize the heuristic function used in A* pathfinding.
+    Distance = |x1-x2| + |y1-y2|
+    """
     font = pygame.font.Font(None, 20)
     for y in range(MAZE_HEIGHT):
         for x in range(MAZE_WIDTH):
