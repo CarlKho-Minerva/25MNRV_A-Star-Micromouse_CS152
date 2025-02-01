@@ -1,14 +1,41 @@
-from simulation.main import MicromouseSimulation
 """
-MicromouseSimulation: Main simulation class implementing micromouse competition rules
+Micromouse Simulation
+====================
+
+A Python implementation of a Micromouse maze-solving simulation using A* pathfinding.
+Based on official Micromouse competition rules:
 http://micromouseusa.com/wp-content/uploads/2016/04/CAMM2016Rules.pdf
 
-Architecture:
-- Pygame-based UI with resizable window
-- Real-time visualization of A* pathfinding
-- Interactive controls (buttons/slider) for simulation management
-- Step-by-step or continuous execution modes
+Purpose:
+--------
+Simulates a robotic mouse finding the optimal path through a maze using A* algorithm,
+with real-time visualization and interactive controls for educational purposes.
+
+Usage:
+------
+Run this file to start the simulation. Controls:
+- Start: Begin automatic pathfinding
+- Stop: Pause simulation
+- Reset: Generate new maze
+- Mnhtn: Toggle Manhattan distance display
+- < >: Step backward/forward
+- Explored: Toggle visited cells visibility
+- Slider: Adjust simulation speed
+
+Architecture Components:
+----------------------
+- Maze Generation: Recursive backtracker algorithm
+- Pathfinding: A* with Manhattan distance heuristic
+- Visualization: Pygame-based UI with real-time updates
+- State Management: Centralized game state control
+- Entity System: Sprite-based mouse movement
+- UI Components: Interactive buttons and slider
+
+Author: Carl Kho
+Date: January 31, 2025
 """
+
+from simulation.main import MicromouseSimulation
 
 if __name__ == "__main__":
     simulation = MicromouseSimulation()
