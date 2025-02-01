@@ -2,6 +2,8 @@
 
 A Python implementation of a Micromouse maze-solving simulation using A* pathfinding.
 
+![alt text](Demo.gif)
+
 ## Project Structure
 
 ```
