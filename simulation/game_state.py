@@ -16,13 +16,13 @@ class GameState:
     def __init__(self):
         # Core simulation states
         self.simulation_running = False  # Controls continuous execution
-        self.show_numbers = False       # Toggle Manhattan distance display
-        self.show_explored_cells = True # Toggle exploration visualization
-        self.current_step = False       # For step-by-step execution
+        self.show_numbers = False  # Toggle Manhattan distance display
+        self.show_explored_cells = True  # Toggle exploration visualization
+        self.current_step = False  # For step-by-step execution
 
         # Pathfinding data
-        self.explored_cells = set()     # Track cells examined by A*
-        self.cost_so_far = {}          # Track path costs to cells
+        self.explored_cells = set()  # Track cells examined by A*
+        self.cost_so_far = {}  # Track path costs to cells
 
     def toggle_numbers(self):
         self.show_numbers = not self.show_numbers
@@ -36,9 +36,14 @@ class GameState:
 
     def stop_simulation(self):
         self.simulation_running = False
+        self.current_step = False
 
     def step_forward(self):
+        self.simulation_running = False
         self.current_step = True
+
+    def step_complete(self):
+        self.current_step = False
 
     def reset(self):
         self.simulation_running = False

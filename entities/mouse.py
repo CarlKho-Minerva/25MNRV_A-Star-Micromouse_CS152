@@ -34,34 +34,29 @@ class Mouse(pygame.sprite.Sprite):
         self.path = []  # List of positions to follow
         self.path_index = 0  # Current position in path
         self.history = []  # Stack of previous positions for backtracking
+        self.has_explored = False  # Add this line to track exploration state
 
     def update(self, maze, end_points, on_step=None):
-        """
-        Updates mouse position and pathfinding.
-        Returns explored cells on initial pathfinding, None otherwise.
-
-        Args:
-            maze: 2D array representing the maze
-            end_points: List of target positions
-            on_step: Optional callback for visualization
-        """
-        # If no path exists, calculate using A*
-        if not self.path:
-            self.path, explored, cost_so_far = astar(
-                maze, self.pos, end_points, on_step
-            )
+        """Updates mouse position and pathfinding."""
+        # Initial A* search if needed
+        if not self.path and not self.has_explored:
+            self.path, explored, cost_so_far = astar(maze, self.pos, end_points, on_step)
+            self.has_explored = True
+            if self.path:
+                self.history = [self.pos]  # Initialize history with start position
             return explored if self.path else None
 
-        # Move along existing path
+        # Handle movement separately
         if self.path_index < len(self.path):
             next_pos = self.path[self.path_index]
-            self.history.append(self.pos)  # Store current position for backtracking
             self.pos = next_pos
+            self.history.append(self.pos)  # Add new position to history
             # Update visual position
             self.rect.x = self.pos[1] * CELL_SIZE
             self.rect.y = self.pos[0] * CELL_SIZE
             self.path_index += 1
-            return None
+
+        return None
 
     def go_back(self):
         """
@@ -69,7 +64,8 @@ class Mouse(pygame.sprite.Sprite):
         Updates both grid position and visual representation.
         """
         if self.history:
-            self.pos = self.history.pop()
+            self.history.pop()  # Remove current position
+            self.pos = self.history[-1] if self.history else self.path[0]
             # Update visual position
             self.rect.x = self.pos[1] * CELL_SIZE
             self.rect.y = self.pos[0] * CELL_SIZE
@@ -80,3 +76,10 @@ class Mouse(pygame.sprite.Sprite):
         self.path = []
         self.path_index = 0
         self.history = []
+        self.has_explored = False  # Add this line to reset exploration state
+
+    def reset_position(self):
+        if self.path:
+            self.pos = self.path[0]
+            self.path_index = 0
+            self.history = [self.pos]

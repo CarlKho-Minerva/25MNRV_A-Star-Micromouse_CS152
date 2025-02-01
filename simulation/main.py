@@ -138,26 +138,25 @@ class MicromouseSimulation:
         self.speed_slider = Slider(0, 0, 200, 20, 1, 60, FPS, GRAY_MID, WHITE)
 
     def reset_simulation(self):
-        """
-        Reset simulation to initial state:
-        - Generate new random maze
-        - Reset mouse position
-        - Clear exploration history
-        """
+        """Reset simulation to initial state"""
         self.maze = create_maze(MAZE_WIDTH, MAZE_HEIGHT)
         self.start, self.end_points = find_start_end(self.maze)
         self.mouse = Mouse(self.start[1], self.start[0])
         self.game_state.reset()
 
     def step_forward(self):
-        """
-        Process one step of mouse movement:
-        - Update mouse position along path
-        - Print debugging information
-        - Calculate Manhattan distance to goal
-        """
-        self.game_state.step_forward()
+        """Process one step of mouse movement"""
+        # First ensure we have a path
+        if not self.mouse.path and not self.mouse.has_explored:
+            explored = self.mouse.update(self.maze, self.end_points)
+            if explored:
+                self.game_state.explored_cells.update(explored)
+                self.game_state.step_complete()
+            return
+
+        # Then handle movement
         if self.mouse.path and self.mouse.path_index < len(self.mouse.path):
+            self.game_state.step_forward()
             next_pos = self.mouse.path[self.mouse.path_index]
             manhattan_dist = min(heuristic(next_pos, end) for end in self.end_points)
             print(f"\nStep {self.mouse.path_index + 1}:")
@@ -165,25 +164,25 @@ class MicromouseSimulation:
             print(f"Manhattan distance to goal: {manhattan_dist}")
 
     def step_backward(self):
-        """
-        Reverse one step of mouse movement:
-        - Move mouse to previous position
-        - Update visualization
-        """
+        """Reverse one step of mouse movement"""
+        self.game_state.stop_simulation()
         self.mouse.go_back()
         if self.mouse.history:
             print(f"\nStepped back to {self.mouse.pos}")
 
     def update(self):
-        """
-        Update simulation state:
-        - Process mouse movement if simulation is running
-        - Track explored cells for visualization
-        """
+        """Update simulation state"""
         if self.game_state.simulation_running or self.game_state.current_step:
-            explored = self.mouse.update(self.maze, self.end_points)
-            if explored:
-                self.game_state.explored_cells.update(explored)
+            if self.game_state.current_step:
+                # For single steps, just move the mouse
+                if self.mouse.path and self.mouse.path_index < len(self.mouse.path):
+                    self.mouse.update(self.maze, self.end_points)
+                self.game_state.step_complete()
+            else:
+                # For continuous running, handle everything
+                explored = self.mouse.update(self.maze, self.end_points)
+                if explored:
+                    self.game_state.explored_cells.update(explored)
 
     def draw(self):
         """
