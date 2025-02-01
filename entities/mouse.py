@@ -1,6 +1,6 @@
 import pygame
 from constants import CELL_SIZE, MOUSE_COLOR
-from pathfinding import astar
+from simulation.pathfinding import astar
 
 
 class Mouse(pygame.sprite.Sprite):

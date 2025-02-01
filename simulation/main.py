@@ -1,5 +1,5 @@
+from constants import *
 import pygame
-from constants import init_display_constants
 
 # Initialize pygame before importing display-dependent modules
 pygame.init()
@@ -7,8 +7,8 @@ init_display_constants()
 
 # Now import everything else
 from constants import *
-from maze import create_maze, find_start_end
-from pathfinding import astar, heuristic
+from simulation.maze import create_maze, find_start_end
+from simulation.pathfinding import heuristic
 from entities.mouse import Mouse
 from ui.button import Button
 from ui.slider import Slider
@@ -19,7 +19,7 @@ from ui.drawing import (
     draw_path,
     draw_manhattan_distances,
 )
-from game_state import GameState
+from simulation.game_state import GameState
 
 
 class MicromouseSimulation:

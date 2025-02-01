@@ -35,17 +35,8 @@ Author: Carl Kho
 Date: January 31, 2025
 """
 
-import pygame
-from constants import init_display_constants
-from simulation.manager import MicromouseSimulation
-
-
-def main():
-    pygame.init()
-    init_display_constants()
-    simulation = MicromouseSimulation()
-    simulation.run()
-
+from simulation.main import MicromouseSimulation
 
 if __name__ == "__main__":
-    main()
+    simulation = MicromouseSimulation()
+    simulation.run()
