@@ -36,25 +36,23 @@ A Python implementation of a Micromouse maze-solving simulation using A* pathfin
 
 ### Installation
 
-1. Clone the repository:
-
+#### Option 1: Install from GitHub (Recommended)
 ```bash
-git clone https://github.com/yourusername/25MNRV_A-Star-Micromouse_CS152.git
+pip install git+https://github.com/CarlKho-Minerva/25MNRV_A-Star-Micromouse_CS152.git
+```
+
+#### Option 2: Clone and Install
+```bash
+git clone https://github.com/CarlKho-Minerva/25MNRV_A-Star-Micromouse_CS152.git
 cd 25MNRV_A-Star-Micromouse_CS152
+pip install -e .
 ```
 
-2. Install required packages:
+## Running
 
+After installation, simply run:
 ```bash
-pip install pygame
-```
-
-### Running the Simulation
-
-Run the simulation using:
-
-```bash
-python3 run.py
+micromouse
 ```
 
 ## Controls
